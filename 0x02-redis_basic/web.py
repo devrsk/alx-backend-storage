@@ -1,29 +1,46 @@
+#!/usr/bin/env python3
+"""
+create a web cach
+"""
 import redis
 import requests
 from functools import wraps
+from typing import Callable
 
-r = redis.Redis()
-CACHE_EXPIRATION_TIME = 10
 
-def cache_page(func):
-    @wraps(func)
-    def wrapper(url):
-        # Check if the page is already cached
-        cached_value = r.get(f"cached:{url}")
-        if cached_value is not None:
-            # Increment the access count and return the cached value
-            r.incr(f"count:{url}")
-            return cached_value.decode()
+def cache_page(method: Callable) -> Callable:
+    """
+    cache_page - function to cache a given url
+    Arguments:
+        the given function
+    Returns:
+        the function passed as argument
+    """
+    obj = redis.Redis()
 
-        # If the page is not cached, fetch it and cache it
-        resp = func(url)
-        r.set(f"cached:{url}", resp.content)
-        r.expire(f"cached:{url}", CACHE_EXPIRATION_TIME)
-        r.set(f"count:{url}", 1)
-        return resp.text
+    @wraps(method)
+    def wrapper(args):
+        """ a wrapper function to return a page &
+        increment the number of times the page has been accessed
+        """
+        obj.incr("count:{}" + args)
+        in_cache = obj.get("cached_page" + args)
+        if in_cache:
+            return in_cache.decode("utf-8")
+        html = method(args)
+        obj.set("cached_page:" + args, html, 10)
+        return html
     return wrapper
+
 
 @cache_page
 def get_page(url: str) -> str:
-    return requests.get(url)
-
+    """
+    get_page - function to get page & returns it
+    Arguments:
+        url: the given url
+    Returns:
+        the obtained html page
+    """
+    html = requests.get(url).text
+    return html
