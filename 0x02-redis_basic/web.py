@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
-"""
-create a web cach
+"""Implement an expiring web cache and tracker
 """
 import redis
 import requests
-rc = redis.Redis()
+r = redis.Redis()
 count = 0
 
 
 def get_page(url: str) -> str:
-    """ get a page and cach value"""
-    rc.set(f"cached:{url}", count)
+    """track url request and cache the result"""
+    r.set(f"cached:{url}", count)
     resp = requests.get(url)
-    rc.incr(f"count:{url}")
-    rc.setex(f"cached:{url}", 10, rc.get(f"cached:{url}"))
+    r.incr(f"count:{url}")
+    r.setex(f"cached:{url}", 10, r.get(f"cached:{url}"))
     return resp.text
 
 
